@@ -1,0 +1,21 @@
+# Copyright (c) 2024 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Nordic BELLBOARD
+
+  BELLBOARD provides support for inter-domain software signaling. It implements
+  a set of tasks and events intended for signaling within an interprocessor
+  communication (IPC) framework.
+
+  Example definition:
+
+    bellboard: mailbox@deadbeef {
+      compatible = "nordic,nrf-bellboard-remote";
+      reg = <0xdeadbeef 0x1000>;
+      #mbox-cells = <1>;
+    };
+
+compatible: "nordic,nrf-bellboard-remote"
+
+include: "nordic,nrf-bellboard-common.yaml"
