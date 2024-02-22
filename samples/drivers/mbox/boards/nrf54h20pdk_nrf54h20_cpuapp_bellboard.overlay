@@ -1,0 +1,11 @@
+/*
+ * Copyright 2024 Nordic Semiconductor ASA
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+mbox: &cpuapp_bellboard {
+	interrupts = <96 NRF_DEFAULT_IRQ_PRIORITY>;
+	interrupt-names = "bellboard0";
+	nordic,interrupt-mapping = <0x00000001 0>;
+	status = "okay";
+};
