@@ -889,3 +889,110 @@ ZTEST_F(zms, test_zms_cache_hash_quality)
 
 #endif
 }
+
+ZTEST_F(zms, test_zms_free_space)
+{
+	const size_t wbs = fixture->fs.flash_parameters->write_block_size;
+	const size_t max_write_len = fixture->fs.sector_size - fixture->fs.ate_size * 5;
+	const size_t max_free_spc = (max_write_len + fixture->fs.ate_size) * 2;
+	int err;
+	uint32_t id;
+	ssize_t len;
+	size_t free_spc_sector;
+	size_t free_spc_total;
+	size_t free_spc_actual;
+	size_t write_len;
+	char write_buf[max_write_len + 1];
+
+	fixture->fs.sector_count = 3;
+
+	err = zms_mount(&fixture->fs);
+	zassert_true(err == 0, "zms_mount call failure: %d", err);
+
+	/* Set and verify the initial values of free_spc_sector and free_spc_total */
+
+	free_spc_sector = max_write_len;
+	free_spc_actual = zms_active_sector_free_space(&fixture->fs);
+	zassert_equal(free_spc_actual, free_spc_sector, "unexpected free space in empty sector");
+
+	free_spc_total = max_free_spc;
+	free_spc_actual = zms_calc_free_space(&fixture->fs);
+	zassert_equal(free_spc_actual, free_spc_total, "unexpected free space in empty filesystem");
+
+	len = zms_write(&fixture->fs, 0, write_buf, sizeof(write_buf));
+	zassert_true(len == -EINVAL, "zms_write unexpected failure: %d", len);
+
+	/* Prepare the first sector */
+
+	for (id = 0; id < 4; id++) {
+		for (int i = 0; i < 4; i++) {
+			/* Write data which won't fit inside the ATE */
+			write_len = ZMS_DATA_IN_ATE_SIZE + (i + 1) * wbs;
+			len = zms_write(&fixture->fs, id, write_buf, write_len);
+			zassert_true(len == write_len, "zms_write failed: %d", len);
+
+			/* Active sector free space decreases for every ATE */
+			free_spc_sector -= fixture->fs.ate_size + write_len;
+			free_spc_actual = zms_active_sector_free_space(&fixture->fs);
+			zassert_equal(free_spc_actual, free_spc_sector,
+				      "unexpected free space in active sector");
+
+			if (i == 0) {
+				/* New ATE, new ID: count the ATE size and data size */
+				free_spc_total -= fixture->fs.ate_size + write_len;
+			} else {
+				/* New ATE, same ID: only count the difference in data size
+				 * between the previous valid ATE and the most recent ATE
+				 */
+				free_spc_total -= wbs;
+			}
+			free_spc_actual = zms_calc_free_space(&fixture->fs);
+			zassert_equal(free_spc_actual, free_spc_total,
+				      "unexpected total free space");
+		}
+	}
+
+	/* Close the sector */
+
+	err = zms_sector_use_next(&fixture->fs);
+	zassert_true(err == 0, "zms_sector_use_next call failure: %d", err);
+
+	free_spc_actual = zms_calc_free_space(&fixture->fs);
+	zassert_equal(free_spc_actual, free_spc_total, "total free space changed unexpectedly");
+
+	free_spc_sector = max_write_len;
+	free_spc_actual = zms_active_sector_free_space(&fixture->fs);
+	zassert_equal(free_spc_actual, free_spc_sector, "unexpected free space in empty sector");
+
+	/* Prepare a sector which only has ATEs with small data size */
+
+	for (id = 4; id < 8; id++) {
+		for (int i = 0; i < ZMS_DATA_IN_ATE_SIZE; i++) {
+			write_len = i + 1;
+			len = zms_write(&fixture->fs, id, write_buf, write_len);
+			zassert_true(len == write_len, "zms_write failed: %d", len);
+
+			/* Active sector free space decreases for every ATE */
+			free_spc_sector -= fixture->fs.ate_size;
+			free_spc_actual = zms_active_sector_free_space(&fixture->fs);
+			zassert_equal(free_spc_actual, free_spc_sector,
+				      "unexpected free space in active sector");
+
+			/* Total free space decreases only when a new ID is added */
+			if (i == 0) {
+				free_spc_total -= fixture->fs.ate_size;
+			}
+			free_spc_actual = zms_calc_free_space(&fixture->fs);
+			zassert_equal(free_spc_actual, free_spc_total,
+				      "unexpected total free space");
+		}
+	}
+
+	/* Close the second sector - time for GC */
+
+	err = zms_sector_use_next(&fixture->fs);
+	zassert_true(err == 0, "zms_sector_use_next call failure: %d", err);
+
+	free_spc_actual = zms_calc_free_space(&fixture->fs);
+	zassert_equal(free_spc_actual, free_spc_total, "total free space changed unexpectedly");
+}

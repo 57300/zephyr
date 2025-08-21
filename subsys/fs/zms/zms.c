@@ -1780,7 +1780,7 @@ ssize_t zms_calc_free_space(struct zms_fs *fs)
 
 		wlk_addr = step_addr;
 		/* Try to find if there is a previous valid ATE with same ID */
-		prev_found = zms_find_ate_with_id(fs, step_ate.id, wlk_addr, step_addr, &wlk_ate,
+		prev_found = zms_find_ate_with_id(fs, step_ate.id, fs->ate_wra, wlk_addr, &wlk_ate,
 						  &wlk_prev_addr);
 		if (prev_found < 0) {
 			return prev_found;
