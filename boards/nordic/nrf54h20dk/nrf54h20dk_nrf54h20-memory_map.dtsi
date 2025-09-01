@@ -166,5 +166,29 @@
 		periphconf_partition: partition@1ae000 {
 			reg = <0x1ae000 DT_SIZE_K(8)>;
 		};
+
+		secure_storage_partition: partition@1b0000 {
+			compatible = "fixed-subpartitions";
+			reg = <0x1b0000 DT_SIZE_K(12)>;
+			ranges = <0x0 0x1b0000 0x3000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			cpuapp_crypto_partition: partition@0 {
+				reg = <0x0 DT_SIZE_K(4)>;
+			};
+
+			cpurad_crypto_partition: partition@1000 {
+				reg = <0x1000 DT_SIZE_K(4)>;
+			};
+
+			cpuapp_its_partition: partition@2000 {
+				reg = <0x2000 DT_SIZE_K(2)>;
+			};
+
+			cpurad_its_partition: partition@2800 {
+				reg = <0x2800 DT_SIZE_K(2)>;
+			};
+		};
 	};
 };
